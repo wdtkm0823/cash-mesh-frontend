@@ -1,55 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api/client';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
-  const [healthStatus, setHealthStatus] = useState<string>('確認中...');
-  const [error, setError] = useState<string>('');
-
-  useEffect(() => {
-    // バックエンドのHealth Checkエンドポイントにアクセス
-    const checkHealth = async () => {
-      try {
-        const response = await apiClient.get('/health');
-        setHealthStatus(response.data.status);
-      } catch (err) {
-        setError('バックエンドAPIに接続できません');
-        console.error(err);
-      }
-    };
-
-    checkHealth();
-  }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-      <main className="flex flex-col items-center gap-8 p-8">
-        <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">
-          Cash Mesh
-        </h1>
+    <div className="flex min-h-screen items-center justify-center">
+          {/* 収入登録モーダル */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="default" size="lg">
+                + 収入を追加
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>収入を登録</DialogTitle>
+                <DialogDescription>
+                  収入の詳細を入力してください
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {/* 金額入力 */}
+                <div className="space-y-2">
+                  <Label htmlFor="amount">金額</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="50000"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            バックエンドAPI接続状態
-          </h2>
+                {/* 日付入力 */}
+                <div className="space-y-2">
+                  <Label htmlFor="date">日付</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                  />
+                </div>
 
-          {error ? (
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-green-500"></div>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                ステータス: <span className="font-semibold text-zinc-900 dark:text-zinc-50">{healthStatus}</span>
-              </p>
-            </div>
-          )}
-        </div>
+                {/* メモ入力 */}
+                <div className="space-y-2">
+                  <Label htmlFor="description">メモ（任意）</Label>
+                  <Input
+                    id="description"
+                    type="text"
+                    placeholder="例: 10月分の給料"
+                    maxLength={255}
+                  />
+                </div>
+              </div>
 
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Phase 0: 環境構築完了
-        </p>
-      </main>
-    </div>
+              <DialogFooter>
+                <Button type="submit" variant="default">
+                  登録
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+      </div>
   );
 }
