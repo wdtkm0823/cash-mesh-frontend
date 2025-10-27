@@ -18,7 +18,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Home() {
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
   // 収入データを取得
   useEffect(() => {
@@ -27,15 +29,65 @@ export default function Home() {
         const response = await apiClient.get('/api/v1/transactions/', {
           params: { transaction_type: 'income' },
         });
-        console.log('✅ 取得成功:', response.data);
         setTransactions(response.data);
       } catch (error) {
-        console.error('❌ 取得失敗:', error);
+        console.error('取得失敗:', error);
       }
     };
 
     fetchTransactions();
   }, []);
+
+  const handleEdit = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setEditOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiClient.delete(`/api/v1/transactions/${id}/`);
+
+      // リストを再取得
+      const response = await apiClient.get('/api/v1/transactions/', {
+        params: { transaction_type: 'income' },
+      });
+      setTransactions(response.data);
+    } catch (error) {
+      console.error('削除失敗:', error);
+    }
+  };
+
+  const handleUpdateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!editingTransaction) return;
+
+    const formData = new FormData(e.currentTarget);
+
+    const requestData = {
+      amount: Number(formData.get('amount')),
+      transaction_type: 'income' as const,
+      transaction_date: formData.get('date') as string,
+      description: formData.get('description') as string || null,
+    };
+
+    try {
+      const response = await apiClient.put(
+        `/api/v1/transactions/${editingTransaction.id}/`,
+        requestData
+      );
+      setEditOpen(false);
+      setEditingTransaction(null);
+
+      // データを再取得
+      const listResponse = await apiClient.get('/api/v1/transactions/', {
+        params: { transaction_type: 'income' },
+      });
+      setTransactions(listResponse.data);
+    } catch (error) {
+      console.error('更新失敗:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,7 +104,6 @@ export default function Home() {
 
     try {
       const response = await apiClient.post('/api/v1/transactions/', requestData);
-      console.log('✅ 登録成功:', response.data);
       setOpen(false);
 
       // データを再取得
@@ -61,10 +112,10 @@ export default function Home() {
       });
       setTransactions(listResponse.data);
     } catch (error) {
-      console.error('❌ 登録失敗:', error);
+      console.error('登録失敗:', error);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -136,6 +187,67 @@ export default function Home() {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* 編集モーダル */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent>
+              <form onSubmit={handleUpdateSubmit}>
+                <DialogHeader>
+                  <DialogTitle>収入を編集</DialogTitle>
+                  <DialogDescription>
+                    収入の詳細を編集してください
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {/* 金額入力 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-amount">金額</Label>
+                    <Input
+                      id="edit-amount"
+                      name="amount"
+                      type="number"
+                      placeholder="50000"
+                      min="0"
+                      step="0.01"
+                      defaultValue={editingTransaction?.amount}
+                      required
+                    />
+                  </div>
+
+                  {/* 日付入力 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-date">日付</Label>
+                    <Input
+                      id="edit-date"
+                      name="date"
+                      type="date"
+                      defaultValue={editingTransaction?.transaction_date}
+                      required
+                    />
+                  </div>
+
+                  {/* メモ入力 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">メモ（任意）</Label>
+                    <Input
+                      id="edit-description"
+                      name="description"
+                      type="text"
+                      placeholder="例: 10月分の給料"
+                      maxLength={255}
+                      defaultValue={editingTransaction?.description || ''}
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit" variant="default">
+                    更新
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* 収入一覧 */}
@@ -152,8 +264,24 @@ export default function Home() {
             <div className="grid gap-4">
               {transactions.map((transaction: any) => (
                 <Card key={transaction.id}>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>¥{transaction.amount.toLocaleString()}</CardTitle>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        編集
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(transaction.id)}
+                      >
+                        削除
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
