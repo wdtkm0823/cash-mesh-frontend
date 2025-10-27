@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { apiClient } from '@/lib/api/client';
+import { useIncomes } from '@/hooks/use-incomes';
+import { Transaction, CreateTransactionRequest, UpdateTransactionRequest } from '@/types/transaction';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,26 +21,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default function Home() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [transactions, setTransactions] = useState([]);
-  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  // 収入データを取得
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        const response = await apiClient.get('/api/v1/transactions/', {
-          params: { transaction_type: 'income' },
-        });
-        setTransactions(response.data);
-      } catch (error) {
-        console.error('取得失敗:', error);
-      }
-    };
+  const { incomes, refetch } = useIncomes();
 
-    fetchTransactions();
-  }, []);
-
-  const handleEdit = (transaction: any) => {
+  const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setEditOpen(true);
   };
@@ -46,12 +33,7 @@ export default function Home() {
   const handleDelete = async (id: number) => {
     try {
       await apiClient.delete(`/api/v1/transactions/${id}/`);
-
-      // リストを再取得
-      const response = await apiClient.get('/api/v1/transactions/', {
-        params: { transaction_type: 'income' },
-      });
-      setTransactions(response.data);
+      refetch();
     } catch (error) {
       console.error('削除失敗:', error);
     }
@@ -64,26 +46,23 @@ export default function Home() {
 
     const formData = new FormData(e.currentTarget);
 
-    const requestData = {
+    const description = formData.get('description');
+
+    const requestData: UpdateTransactionRequest = {
       amount: Number(formData.get('amount')),
-      transaction_type: 'income' as const,
+      transaction_type: 'income',
       transaction_date: formData.get('date') as string,
-      description: formData.get('description') as string || null,
+      description: description ? String(description) : null,
     };
 
     try {
-      const response = await apiClient.put(
+      await apiClient.put(
         `/api/v1/transactions/${editingTransaction.id}/`,
         requestData
       );
       setEditOpen(false);
       setEditingTransaction(null);
-
-      // データを再取得
-      const listResponse = await apiClient.get('/api/v1/transactions/', {
-        params: { transaction_type: 'income' },
-      });
-      setTransactions(listResponse.data);
+      refetch();
     } catch (error) {
       console.error('更新失敗:', error);
     }
@@ -94,23 +73,19 @@ export default function Home() {
 
     const formData = new FormData(e.currentTarget);
 
-    // APIリクエスト用にデータを整形
-    const requestData = {
+    const description = formData.get('description');
+
+    const requestData: CreateTransactionRequest = {
       amount: Number(formData.get('amount')),
-      transaction_type: 'income' as const,
+      transaction_type: 'income',
       transaction_date: formData.get('date') as string,
-      description: formData.get('description') as string || null,
+      description: description ? String(description) : null,
     };
 
     try {
-      const response = await apiClient.post('/api/v1/transactions/', requestData);
+      await apiClient.post('/api/v1/transactions/', requestData);
       setOpen(false);
-
-      // データを再取得
-      const listResponse = await apiClient.get('/api/v1/transactions/', {
-        params: { transaction_type: 'income' },
-      });
-      setTransactions(listResponse.data);
+      refetch();
     } catch (error) {
       console.error('登録失敗:', error);
     }
@@ -256,13 +231,13 @@ export default function Home() {
             収入一覧
           </h2>
 
-          {transactions.length === 0 ? (
+          {incomes.length === 0 ? (
             <p className="text-zinc-500 dark:text-zinc-400">
               まだ収入が登録されていません
             </p>
           ) : (
             <div className="grid gap-4">
-              {transactions.map((transaction: any) => (
+              {incomes.map((transaction) => (
                 <Card key={transaction.id}>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>¥{transaction.amount.toLocaleString()}</CardTitle>
